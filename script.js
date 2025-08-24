@@ -330,104 +330,95 @@ document.addEventListener('DOMContentLoaded', () => {
 	// --- UI Rendering ---
 
 	function renderMainDocumentsTable() {
-		let docsToDisplay = [...documents];
-		const selectedLocation = locationSelect.value;
-		if (selectedLocation) {
-			docsToDisplay = docsToDisplay.filter(doc => doc.locationId === selectedLocation);
-		}
-		
-		const selectedFilter = document.querySelector('input[name="documentFilter"]:checked').value;
-		if (selectedFilter !== 'all') {
-			docsToDisplay = docsToDisplay.filter(doc => {
-				const statusType = getNotificationStatus(doc).type;
-				if (selectedFilter === 'non-expiring') return statusType === 'success';
-				if (selectedFilter === 'expiring') return statusType === 'warning' || statusType === 'danger';
-				return true;
-			});
-		}
-		
-		docsToDisplay = filterDocuments(docsToDisplay, filterAgencyNameInput.value, filterDocumentNameInput.value);
-		
-		if (currentMainSortKey) {
-			docsToDisplay = sortDocuments(docsToDisplay, currentMainSortKey, currentMainSortDirection);
-		}
+                let docsToDisplay = [...documents];
+                const selectedLocation = locationSelect.value;
+                if (selectedLocation) {
+                    docsToDisplay = docsToDisplay.filter(doc => doc.locationId === selectedLocation);
+                }
+                
+                const selectedFilter = document.querySelector('input[name="documentFilter"]:checked').value;
+                if (selectedFilter !== 'all') {
+                    docsToDisplay = docsToDisplay.filter(doc => {
+                        const statusType = getNotificationStatus(doc).type;
+                        if (selectedFilter === 'non-expiring') return statusType === 'success';
+                        if (selectedFilter === 'expiring') return statusType === 'warning' || statusType === 'danger';
+                        return true;
+                    });
+                }
+                
+                docsToDisplay = filterDocuments(docsToDisplay, filterAgencyNameInput.value, filterDocumentNameInput.value);
+                
+                if (currentMainSortKey) {
+                    docsToDisplay = sortDocuments(docsToDisplay, currentMainSortKey, currentMainSortDirection);
+                }
 
-		documentsTable.querySelectorAll('.sort-header').forEach(header => {
-			header.classList.remove('sort-asc', 'sort-desc');
-			if (header.dataset.sortKey === currentMainSortKey) {
-				header.classList.add(`sort-${currentMainSortDirection}`);
-			}
-		});
-		
-		documentsTableBody.innerHTML = '';
-		documentsTableFoot.classList.toggle('hidden', docsToDisplay.length > 0);
+                documentsTable.querySelectorAll('.sort-header').forEach(header => {
+                    header.classList.remove('sort-asc', 'sort-desc');
+                    if (header.dataset.sortKey === currentMainSortKey) {
+                        header.classList.add(`sort-${currentMainSortDirection}`);
+                    }
+                });
+                
+                documentsTableBody.innerHTML = '';
+                documentsTableFoot.classList.toggle('hidden', docsToDisplay.length > 0);
 
-		docsToDisplay.forEach(doc => {
-			const row = documentsTableBody.insertRow();
-			row.dataset.docId = doc.id;
-			const status = getNotificationStatus(doc);
+                docsToDisplay.forEach(doc => {
+                    const row = documentsTableBody.insertRow();
+                    row.dataset.docId = doc._id; // <-- FIX
+                    const status = getNotificationStatus(doc);
 
-			if (status.type === 'danger') row.classList.add('row-expired');
-			else if (status.type === 'warning') row.classList.add('row-expiring');
-			
-			const statusSpan = document.createElement('span');
-			statusSpan.className = `status-span ${status.type}`;
-			statusSpan.textContent = status.status;
-			
-			// Create the Agency cell with conditional button
-			const agencyCell = createTableCell(doc.agencyName);
-			if (status.type === 'warning' || status.type === 'danger') {
-				agencyCell.classList.add('agency-cell-flex');
-				const renewalButtonHTML = `<button class="renewal-status-button" data-doc-id="${doc.id}">Renewal Status</button>`;
-				agencyCell.innerHTML = `<span>${doc.agencyName}</span>${renewalButtonHTML}`;
-			}
-			
-			const actionsCell = document.createElement('div');
-			actionsCell.className = 'actions-cell';
-			if (doc.attachmentData) {
-				actionsCell.innerHTML += `<span class="attachment-indicator" data-id="${doc.id}" title="Preview: ${doc.attachmentName}">
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.122 2.122l7.81-7.81"></path></svg>
-				</span>`;
-			} else {
-				actionsCell.innerHTML += `<span class="attachment-indicator" title="No Attachment">
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1.2rem; height:1.2rem; opacity: 0.5;">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739L16.29 14.825a.75.75 0 00-1.06 0L13.14 17.51a.75.75 0 000 1.06l2.086 2.086a4.5 4.5 0 006.364-6.364l-1.094-1.094zM12.739 18.375L14.825 16.29a.75.75 0 000-1.06L17.51 13.14a.75.75 0 001.06 0l2.086 2.086a4.5 4.5 0 000-6.364L12.739 5.625M.525 5.625L5.625 10.739M10.739 5.625L5.625 10.739M5.625 10.739V5.625" />
-					</svg>
-				</span>`;
-			}
+                    if (status.type === 'danger') row.classList.add('row-expired');
+                    else if (status.type === 'warning') row.classList.add('row-expiring');
+                    
+                    const statusSpan = document.createElement('span');
+                    statusSpan.className = `status-span ${status.type}`;
+                    statusSpan.textContent = status.status;
+                    
+                    const agencyCell = createTableCell(doc.agencyName);
+                    if (status.type === 'warning' || status.type === 'danger') {
+                        agencyCell.classList.add('agency-cell-flex');
+                        const renewalButtonHTML = `<button class="renewal-status-button" data-doc-id="${doc._id}">Renewal Status</button>`; // <-- FIX
+                        agencyCell.innerHTML = `<span>${doc.agencyName}</span>${renewalButtonHTML}`;
+                    }
+                    
+                    const actionsCell = document.createElement('div');
+                    actionsCell.className = 'actions-cell';
+                    if (doc.attachmentPath) { // <-- FIX: Check for attachmentPath now
+                        actionsCell.innerHTML += `<span class="attachment-indicator" data-id="${doc._id}" title="Preview: ${doc.attachmentName || 'attachment'}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.122 2.122l7.81-7.81"></path></svg>
+                        </span>`;
+                    } else {
+                        actionsCell.innerHTML += `<span class="attachment-indicator" title="No Attachment">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1.2rem; height:1.2rem; opacity: 0.5;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739L16.29 14.825a.75.75 0 00-1.06 0L13.14 17.51a.75.75 0 000 1.06l2.086 2.086a4.5 4.5 0 006.364-6.364l-1.094-1.094zM12.739 18.375L14.825 16.29a.75.75 0 000-1.06L17.51 13.14a.75.75 0 001.06 0l2.086 2.086a4.5 4.5 0 000-6.364L12.739 5.625M.525 5.625L5.625 10.739M10.739 5.625L5.625 10.739M5.625 10.739V5.625" />
+                            </svg>
+                        </span>`;
+                    }
 
-			const isDisabled = status.type === 'danger' || status.type === 'warning';
-			const disabledAttribute = isDisabled ? 'disabled' : '';
-			
-			let editTooltipText = `Edit Document`;
-			let deleteTooltipText = `Delete Document`;
-
-			if (isDisabled) {
-				editTooltipText = 'Disabled: Document is expiring/expired';
-				deleteTooltipText = 'Disabled: Document is expiring/expired';
-			}
-
-			actionsCell.innerHTML += `
-				<button data-id="${doc.id}" class="action-button edit-button-icon" title="${editTooltipText}" ${disabledAttribute}>
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-				</button>
-				<button data-id="${doc.id}" class="action-button delete-button-icon" title="${deleteTooltipText}" ${disabledAttribute}>
-				   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem; height:1rem;">
-					  <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0h8m-9 4v6m4-6v6m4-6v6M4 7h16l-1 12a2 2 0 01-2 2H7a2 2 0 01-2-2L4 7z"/>
-				   </svg>
-				</button>`;
-			
-			row.appendChild(agencyCell);
-			row.appendChild(createTableCell(doc.documentName));
-			row.appendChild(createTableCell(doc.documentNumber));
-			row.appendChild(createTableCell(formatDate(doc.issuanceDate)));
-			row.appendChild(createTableCell(doc.oneTimeIssuance ? 'N/A (One-Time)' : formatDate(doc.expirationDate)));
-			row.appendChild(createTableCell(getLocationNameById(doc.locationId)));
-			row.appendChild(createTableCell(doc.entityName || 'N/A'));
-			row.appendChild(createTableCell(statusSpan));
-			row.appendChild(createTableCell(actionsCell));
-		});
-	}
+                    const isDisabled = status.type === 'danger' || status.type === 'warning';
+                    const disabledAttribute = isDisabled ? 'disabled' : '';
+                    
+                    actionsCell.innerHTML += `
+                        <button data-id="${doc._id}" class="action-button edit-button-icon" title="Edit Document" ${disabledAttribute}>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                        </button>
+                        <button data-id="${doc._id}" class="action-button delete-button-icon" title="Delete Document" ${disabledAttribute}>
+                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem; height:1rem;">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0h8m-9 4v6m4-6v6m4-6v6M4 7h16l-1 12a2 2 0 01-2 2H7a2 2 0 01-2-2L4 7z"/>
+                           </svg>
+                        </button>`;
+                    
+                    row.appendChild(agencyCell);
+                    row.appendChild(createTableCell(doc.documentName));
+                    row.appendChild(createTableCell(doc.documentNumber));
+                    row.appendChild(createTableCell(formatDate(doc.issuanceDate)));
+                    row.appendChild(createTableCell(doc.oneTimeIssuance ? 'N/A (One-Time)' : formatDate(doc.expirationDate)));
+                    row.appendChild(createTableCell(getLocationNameById(doc.locationId)));
+                    row.appendChild(createTableCell(doc.entityName || 'N/A'));
+                    row.appendChild(createTableCell(statusSpan));
+                    row.appendChild(createTableCell(actionsCell));
+                });
+            }
 
 	function renderArchivedDocumentsTable() {
 		const agencyFilter = filterArchivedAgencyInput.value;
@@ -871,7 +862,8 @@ document.addEventListener('DOMContentLoaded', () => {
 			submitButton.textContent = isRenewal ? 'Renew Document' : 'Save Changes';
 			submitButton.id = isRenewal ? 'renew-confirm-form' : 'saveDocumentBtn';
 
-			document.getElementById('form-document-id').value = isRenewal ? '' : docToEdit.id;
+			document.getElementById('form-document-id').value = isRenewal ? '' : docToEdit._id;
+		
 			
 			const isPredefinedAgency = Array.from(formAgencyNameSelect.options).some(opt => opt.value === docToEdit.agencyName);
 			if (isPredefinedAgency) {
@@ -1110,7 +1102,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isOneTimeIssuance = addOneTimeCheckbox ? addOneTimeCheckbox.checked : false;
 
                 const docData = {
-                    id: docId || generateUUID(),
                     agencyName: agencyName,
                     documentName: documentName,
                     entityName: entityName,
@@ -1119,13 +1110,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     expirationDate: isOneTimeIssuance ? null : document.getElementById('form-expiration-date').value,
                     locationId: document.getElementById('form-location').value,
                     oneTimeIssuance: isOneTimeIssuance,
-                    comments: (docId && documents.find(d => d.id === docId)?.comments) || []
+                    comments: (docId && documents.find(d => d._id === docId)?.comments) || [] // <-- FIX
                 };
+                
+                if (docId) {
+                    docData._id = docId; // <-- FIX: Add _id for updates
+                }
 
                 const response = await saveDataToServer(docData, file);
+
                 if (response) {
                     displayGlobalMessage(docId ? 'Document updated successfully!' : 'Document added successfully!', 'success');
-                    await loadDataFromServer(); // Reload all data from server
+                    await loadDataFromServer();
                     updateUI();
                     closeDocumentModal();
                 }
@@ -1141,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
 	function downloadAttachment(docId) {
-		const doc = documents.find(d => d.id === docId) || archivedDocuments.find(d => d.id === docId);
+		const doc = documents.find(d => d._id === docId) || archivedDocuments.find(d => d._id === docId);
 		if (doc && doc.attachmentData) {
 			const link = document.createElement('a');
 			link.href = doc.attachmentData;
@@ -1294,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	function highlightAndScrollToRow(docId) {
-		const doc = documents.find(d => d.id === docId);
+		const doc = documents.find(d => d._id === docId);
 		if (!doc) return;
 
 		locationSelect.value = doc.locationId;
@@ -1386,7 +1382,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	
 	renewDocSelect.addEventListener('change', () => {
 		renewConfirmBtn.disabled = !renewDocSelect.value;
-		const selectedDoc = documents.find(d => d.id === renewDocSelect.value);
+		const selectedDoc = documents.find(d => d._id === renewDocSelect.value);
 		renewLocationInfo.textContent = selectedDoc ? `Current Expiry: ${formatDate(selectedDoc.expirationDate)} at ${getLocationNameById(selectedDoc.locationId)}` : '';
 	});
 	
@@ -1395,7 +1391,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (!selectedDocId) return displayGlobalMessage('Please select a document to renew.', 'error');
 		
 		if (window.confirm('Are you sure you want to renew this document?')) {
-			const docToRenew = documents.find(d => d.id === selectedDocId);
+			const docToRenew = documents.find(d => d._id === selectedDocId);
 			if (docToRenew) {
 				sessionStorage.setItem('renewingDocId', selectedDocId);
 				closeRenewModal();
@@ -1415,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		// Handle attachment preview click
 		if (attachmentIndicator) {
 			const docId = attachmentIndicator.dataset.id;
-			const doc = documents.find(d => d.id === docId);
+			const doc = documents.find(d => d._id === docId);
 			if (doc && doc.attachmentData) openPreviewModal(doc);
 			else if (doc) displayGlobalMessage('No attachment available for this document.', 'info');
 			return;
@@ -1426,7 +1422,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		// Handle log status button click
 		if (button.classList.contains('renewal-status-button')) {
 			const docId = button.dataset.docId;
-			const doc = documents.find(d => d.id === docId);
+			const doc = documents.find(d => d._id === docId);
 			if (doc) {
 				openStatusLogModal(doc);
 			}
@@ -1441,7 +1437,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (button.classList.contains('delete-button-icon')) {
 			openDeleteModal(docId);
 		} else if (button.classList.contains('edit-button-icon')) {
-			const docToEdit = documents.find(d => d.id === docId);
+			const docToEdit = documents.find(d => d._id === docId);
 			if (docToEdit) openDocumentModal(docToEdit);
 		}
 	});
@@ -1452,7 +1448,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		if (attachmentIndicator) {
 			const docId = attachmentIndicator.dataset.id;
-			const doc = archivedDocuments.find(d => d.id === docId);
+			const doc = archivedDocuments.find(d => d._id === docId);
 			if (doc && doc.attachmentData) {
 				openPreviewModal(doc);
 			} else if (doc) {
@@ -1463,7 +1459,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		if (logButton) {
 			const docId = logButton.dataset.docId;
-			const doc = archivedDocuments.find(d => d.id === docId);
+			const doc = archivedDocuments.find(d => d._id === docId);
 			if (doc) {
 				openStatusLogModal(doc, true); // Open in read-only mode
 			}
@@ -1548,7 +1544,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			closeComplianceDetailsModal();
 			openDocumentModal(null, false, prefillData);
 		} else if (docType === 'expired' || docType === 'expiring') {
-			const docToRenew = documents.find(d => d.id === docId);
+			const docToRenew = documents.find(d => d._id === docId);
 			if (docToRenew) {
 				sessionStorage.setItem('renewingDocId', docId);
 				closeComplianceDetailsModal();
@@ -1573,7 +1569,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		const logButton = e.target.closest('.log-status-btn');
 		if (logButton) {
 			const docId = logButton.dataset.docId;
-			const doc = documents.find(d => d.id === docId);
+			const doc = documents.find(d => d._id === docId);
 			if (doc) {
 				openStatusLogModal(doc);
 			}
@@ -1594,7 +1590,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			return;
 		}
 
-		const docIndex = documents.findIndex(d => d.id === docId);
+		const docIndex = documents.findIndex(d => d._id === docId);
 		if (docIndex > -1) {
 			const newComment = {
 				timestamp: new Date().toISOString(),
@@ -1615,22 +1611,22 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 	
 	notificationsList.addEventListener('click', (e) => {
-		const listItem = e.target.closest('li.clickable');
-		if (listItem && listItem.dataset.docId) {
-			const docId = listItem.dataset.docId;
-			const doc = documents.find(d => d.id === docId);
-			if (doc) {
-				openNotificationActionModal(doc);
-			}
-		}
-	});
+                const listItem = e.target.closest('li.clickable');
+                if (listItem && listItem.dataset.docId) {
+                    const docId = listItem.dataset.docId;
+                    const doc = documents.find(d => d._id === docId); // <-- FIX
+                    if (doc) {
+                        openNotificationActionModal(doc);
+                    }
+                }
+            });
 
 	closeNotificationActionModalBtn.addEventListener('click', closeNotificationActionModal);
 	notificationActionModal.addEventListener('click', e => e.target === notificationActionModal && closeNotificationActionModal());
 
 	actionViewStatusBtn.addEventListener('click', (e) => {
 		const docId = e.target.dataset.docId;
-		const doc = documents.find(d => d.id === docId);
+		const doc = documents.find(d => d._id === docId);
 		if (doc) {
 			openStatusLogModal(doc);
 			statusLogModal.classList.add('modal-on-top'); // <-- ADD THIS LINE
@@ -1639,7 +1635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	actionRenewBtn.addEventListener('click', (e) => {
 		const docId = e.target.dataset.docId;
-		const docToRenew = documents.find(d => d.id === docId);
+		const docToRenew = documents.find(d => d._id === docId);
 		if (docToRenew) {
 			sessionStorage.setItem('renewingDocId', docId);
 			openDocumentModal(docToRenew, true);
