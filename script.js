@@ -198,24 +198,58 @@ document.addEventListener('DOMContentLoaded', () => {
 		setTimeout(() => globalNotificationDiv.classList.remove('active'), 4000);
 	}
 
-	function saveDataToLocalStorage(key, data) {
-		try {
-			localStorage.setItem(key, JSON.stringify(data));
-		} catch (e) {
-			console.error("Error saving to localStorage:", e);
-			displayGlobalMessage("Failed to save data. Storage might be full.");
-		}
-	}
+// --- NEW: Server Communication Functions ---
+            async function loadDataFromServer() {
+                try {
+                    const response = await fetch('/api/documents');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    documents = data.documents;
+                    archivedDocuments = data.archives;
+                } catch (error) {
+                    console.error("Failed to load data from server:", error);
+                    displayGlobalMessage("Error: Could not connect to the server. Please ensure the server is running.", "error");
+                }
+            }
 
-	function loadDataFromLocalStorage(key) {
-		try {
-			const data = localStorage.getItem(key);
-			return data ? JSON.parse(data) : [];
-		} catch (e) {
-			console.error("Error loading from localStorage:", e);
-			return [];
-		}
-	}
+            async function saveDataToServer(docData, file) {
+                const formData = new FormData();
+                formData.append('document', JSON.stringify(docData));
+                if (file) {
+                    formData.append('attachment', file);
+                }
+
+                try {
+                    const response = await fetch('/api/documents', {
+                        method: 'POST',
+                        body: formData, // No 'Content-Type' header needed, browser sets it for FormData
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error("Failed to save data to server:", error);
+                    displayGlobalMessage("Error: Could not save document to the server.", "error");
+                }
+            }
+
+            async function deleteDocumentOnServer(docId) {
+                try {
+                    const response = await fetch(`/api/documents/${docId}`, {
+                        method: 'DELETE',
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error("Failed to delete document on server:", error);
+                    displayGlobalMessage("Error: Could not delete document.", "error");
+                }
+            }
 	
 	const createTableCell = (content, className = '') => {
 		const cell = document.createElement('td');
@@ -1050,93 +1084,61 @@ document.addEventListener('DOMContentLoaded', () => {
 		return isValid;
 	}
 	
-	function handleSaveDocument(e) {
-		e.preventDefault();
-		if (!validateForm()) return;
-		
-		const docId = document.getElementById('form-document-id').value;
-		const fileInput = document.getElementById('form-upload-document');
-		const file = fileInput.files[0];
+	async function handleSaveDocument(e) {
+                e.preventDefault();
+                if (!validateForm()) return;
+                
+                const docId = document.getElementById('form-document-id').value;
+                const fileInput = document.getElementById('form-upload-document');
+                const file = fileInput.files[0];
 
-		if (file && (file.size > MAX_FILE_SIZE_MB * 1024 * 1024)) {
-			displayGlobalMessage(`File is too large. Please select a file under ${MAX_FILE_SIZE_MB} MB.`, 'error');
-			fileInput.value = '';
-			return;
-		}
+                if (file && (file.size > MAX_FILE_SIZE_MB * 1024 * 1024)) {
+                    displayGlobalMessage(`File is too large. Please select a file under ${MAX_FILE_SIZE_MB} MB.`, 'error');
+                    fileInput.value = '';
+                    return;
+                }
 
-		const isOneTimeIssuance = addOneTimeCheckbox ? addOneTimeCheckbox.checked : false;
-		
-		const processAndSave = (attachmentData, attachmentName) => {
-			let agencyName = formAgencyNameSelect.value;
-			if (agencyName === 'Other') agencyName = formAgencyNameOtherInput.value.trim();
+                let agencyName = formAgencyNameSelect.value;
+                if (agencyName === 'Other') agencyName = formAgencyNameOtherInput.value.trim();
 
-			let documentName = formDocumentNameSelect.value;
-			if (documentName === 'Other') documentName = formDocumentNameOtherInput.value.trim();
+                let documentName = formDocumentNameSelect.value;
+                if (documentName === 'Other') documentName = formDocumentNameOtherInput.value.trim();
 
-			let entityName = formEntityNameSelect.value;
-			if (entityName === 'Other') entityName = formEntityNameOtherInput.value.trim();
+                let entityName = formEntityNameSelect.value;
+                if (entityName === 'Other') entityName = formEntityNameOtherInput.value.trim();
 
-			const docData = {
-				id: docId || generateUUID(),
-				agencyName: agencyName,
-				documentName: documentName,
-				entityName: entityName,
-				documentNumber: document.getElementById('form-document-number').value.trim(),
-				issuanceDate: document.getElementById('form-issuance-date').value,
-				expirationDate: isOneTimeIssuance ? null : document.getElementById('form-expiration-date').value,
-				locationId: document.getElementById('form-location').value,
-				attachmentData: attachmentData,
-				attachmentName: attachmentName,
-				oneTimeIssuance: isOneTimeIssuance, // Store the flag
-				comments: (docId && documents.find(d => d.id === docId)?.comments) || []
-			};
+                const isOneTimeIssuance = addOneTimeCheckbox ? addOneTimeCheckbox.checked : false;
 
-			const originalDocId = sessionStorage.getItem('renewingDocId');
-			if (originalDocId) {
-				const oldDocIndex = documents.findIndex(d => d.id === originalDocId);
-				if (oldDocIndex > -1) {
-					const [archivedDoc] = documents.splice(oldDocIndex, 1);
-					archivedDocuments.unshift({ ...archivedDoc, archivedAt: new Date().toISOString(), status: 'Archived (Renewed)' });
-					saveDataToLocalStorage(LOCAL_STORAGE_KEY_ARCHIVES, archivedDocuments);
-				}
-				sessionStorage.removeItem('renewingDocId');
-				documents.push(docData);
-			} else {
-				const existingIndex = documents.findIndex(d => d.id === docData.id);
-				if (existingIndex > -1) {
-					documents[existingIndex] = docData;
-				} else {
-					documents.push(docData);
-				}
-			}
-			
-			saveDataToLocalStorage(LOCAL_STORAGE_KEY_DOCUMENTS, documents);
-			displayGlobalMessage(docId ? 'Document updated successfully!' : 'Document added successfully!', 'success');
-			updateUI();
-			closeDocumentModal();
-		};
+                const docData = {
+                    id: docId || generateUUID(),
+                    agencyName: agencyName,
+                    documentName: documentName,
+                    entityName: entityName,
+                    documentNumber: document.getElementById('form-document-number').value.trim(),
+                    issuanceDate: document.getElementById('form-issuance-date').value,
+                    expirationDate: isOneTimeIssuance ? null : document.getElementById('form-expiration-date').value,
+                    locationId: document.getElementById('form-location').value,
+                    oneTimeIssuance: isOneTimeIssuance,
+                    comments: (docId && documents.find(d => d.id === docId)?.comments) || []
+                };
 
-		if (file) {
-			const reader = new FileReader();
-			reader.onload = (event) => processAndSave(event.target.result, file.name);
-			reader.onerror = () => displayGlobalMessage('Error reading file.');
-			reader.readAsDataURL(file);
-		} else {
-			const existingAttachmentData = document.getElementById('form-attachment-data').value;
-			const existingAttachmentName = document.getElementById('form-attachment-name').value;
-			processAndSave(existingAttachmentData, existingAttachmentName);
-		}
-	}
+                const response = await saveDataToServer(docData, file);
+                if (response) {
+                    displayGlobalMessage(docId ? 'Document updated successfully!' : 'Document added successfully!', 'success');
+                    await loadDataFromServer(); // Reload all data from server
+                    updateUI();
+                    closeDocumentModal();
+                }
+            }
 
-	function deleteDocument(docId) {
-		const docIndex = documents.findIndex(doc => doc.id === docId);
-		if (docIndex > -1) {
-			documents.splice(docIndex, 1);
-			saveDataToLocalStorage(LOCAL_STORAGE_KEY_DOCUMENTS, documents);
-			displayGlobalMessage('Document permanently deleted!', 'success');
-			updateUI();
-		}
-	}
+	async function deleteDocument(docId) {
+                const response = await deleteDocumentOnServer(docId);
+                if (response) {
+                    displayGlobalMessage('Document permanently deleted!', 'success');
+                    await loadDataFromServer(); // Reload all data from server
+                    updateUI();
+                }
+            }
 
 	function downloadAttachment(docId) {
 		const doc = documents.find(d => d.id === docId) || archivedDocuments.find(d => d.id === docId);
@@ -1233,31 +1235,28 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	}
 	
-	function initializeApp() {
-		locations = loadDataFromLocalStorage(LOCAL_STORAGE_KEY_LOCATIONS);
-		if (locations.length === 0) {
-			locations = PREDEFINED_LOCATIONS;
-			saveDataToLocalStorage(LOCAL_STORAGE_KEY_LOCATIONS, locations);
-		}
-		documents = loadDataFromLocalStorage(LOCAL_STORAGE_KEY_DOCUMENTS);
-		archivedDocuments = loadDataFromLocalStorage(LOCAL_STORAGE_KEY_ARCHIVES);
-		createDocNameToAgencyMap();
-		
-		const savedTheme = localStorage.getItem(LOCAL_STORAGE_KEY_THEME) || 'light';
-		document.documentElement.setAttribute('data-theme', savedTheme);
-		updateThemeIcons(savedTheme);
-		updateButtonLabel(savedTheme);
+	async function initializeApp() {
+                // The new async function to load data from the server
+                await loadDataFromServer();
+                
+                // The rest of the function remains mostly the same
+                locations = PREDEFINED_LOCATIONS; // We'll keep locations client-side for simplicity
+                
+                const savedTheme = localStorage.getItem(LOCAL_STORAGE_KEY_THEME) || 'light';
+                document.documentElement.setAttribute('data-theme', savedTheme);
+                updateThemeIcons(savedTheme);
+                updateButtonLabel(savedTheme);
 
-		const isArchivedVisible = localStorage.getItem(LOCAL_STORAGE_KEY_ARCHIVE_VISIBILITY) === 'true';
-		document.getElementById('archived-table-content').classList.toggle('hidden', !isArchivedVisible);
+                const isArchivedVisible = localStorage.getItem(LOCAL_STORAGE_KEY_ARCHIVE_VISIBILITY) === 'true';
+                document.getElementById('archived-table-content').classList.toggle('hidden', !isArchivedVisible);
 
-		const isAboutPanelExpanded = localStorage.getItem(LOCAL_STORAGE_KEY_ABOUT_PANEL_VISIBILITY) === 'true';
-		aboutPanelContent.classList.toggle('expanded', isAboutPanelExpanded);
-		toggleAboutPanelBtn.classList.toggle('rotated', isAboutPanelExpanded);
-		aboutPanelHeader.setAttribute('aria-expanded', isAboutPanelExpanded);
+                const isAboutPanelExpanded = localStorage.getItem(LOCAL_STORAGE_KEY_ABOUT_PANEL_VISIBILITY) === 'true';
+                aboutPanelContent.classList.toggle('expanded', isAboutPanelExpanded);
+                toggleAboutPanelBtn.classList.toggle('rotated', isAboutPanelExpanded);
+                aboutPanelHeader.setAttribute('aria-expanded', isAboutPanelExpanded);
 
-		updateUI();
-	}
+                updateUI();
+            }
 
 	function openDeleteModal(docId) {
 		sessionStorage.setItem('deletingDocId', docId);
